@@ -1,4 +1,6 @@
 #include "Particle.h"
+#include <string>
+#include <bitset>
 
 // D2 = input
 // D3 = output
@@ -126,6 +128,64 @@ void threadSendMessage(void) {
         }
         Serial.println("");
     }*/
+}
+
+void sendMessage(std::string message) {
+    std::string byte_message;
+    for (std::size_t i = 0; i < message.length(); ++i)
+    {
+        byte_message = std::bitset<8>(message.c_str()[i]).to_string();
+
+        for (std::size_t i = 0; i < byte_message.length(); ++i) {
+            if(message.c_str()[i] == '0') {
+                sendLOW();
+            } else {
+                sendHIGH();
+            }
+        }
+    }
+}
+
+void sendTrame(void) {
+    //Préambule
+    for(int i = 0; i < 8; i++){
+        if(i%2 == 0){
+            sendLOW();
+        }
+        else{
+            sendHIGH();
+        }
+    }
+
+    //Start
+    sendLOW();
+    for(int i = 0; i < 6; i++){
+        sendHIGH();
+    }
+    sendLOW();
+
+    //Entête (type + flags) -> 11000011
+    sendHIGH();
+    sendHIGH();
+    for(int i = 0; i < 4; i++){
+        sendLOW();
+    }
+    sendHIGH();
+    sendHIGH();
+    
+    //Charge utile
+    std::string message = "";
+
+    sendMessage(message);
+
+    //Contrôle (CRC16)
+
+    //End
+    sendLOW();
+    for(int i = 0; i < 6; i++){
+        sendHIGH();
+    }
+    sendLOW();
 }
 
 void sendHIGH(void){ //1
