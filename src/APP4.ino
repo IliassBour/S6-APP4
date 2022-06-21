@@ -1,4 +1,5 @@
 #include "Particle.h"
+#include "FrameHandler.h"
 
 // D2 = input
 // D3 = output
@@ -48,7 +49,15 @@ void setup() {
 }
 
 void loop() {
+    /*byte trame[80] = {0};
+    sendTrame("Hello world! Am I your friend?", trame);
+    //sendWrongTrame(trame);
+    receiveTrame(trame);
     
+    for(int i =0; i <18; i++) {
+        Serial.printf("trame %d: %x\n", i, trame[i]);
+    }/**/
+
     delay(8000);
     
     //Create message
