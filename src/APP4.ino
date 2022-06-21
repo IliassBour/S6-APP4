@@ -13,29 +13,22 @@ void threadOutput(void);
 //Thread thread("threadInput", threadInput);
 //Thread thread("threadOutput", threadOutput);
 
-int once = 0;
-volatile int param = 3;
-volatile int counter = 0;
-volatile int input = 0;
-unsigned long lastReport = 0;
-//system_tick_t lastOuputThreadTime = 0;
-
 
 //***//
-void threadSendMessage(void);
+//void threadSendMessage(void);
 
 
-//Write
-volatile byte messagePaquet;
+//Write//
+//volatile byte messagePaquet[6];
 system_tick_t lastOuputThreadTime = 0;
 
 
-//Read
-volatile int up_counter = 0;
-volatile int down_counter = 0;
-volatile unsigned long clk_values[10] = {0};
-volatile int clk_index = 0;
-volatile unsigned long clk_time = 0;
+//Read//
+//volatile int up_counter = 0;
+//volatile int down_counter = 0;
+//volatile unsigned long clk_values[10] = {0};
+//volatile int clk_index = 0;
+//volatile unsigned long clk_time = 0;
 
 //***//
 
@@ -44,61 +37,39 @@ void setup() {
 	pinMode(D2, INPUT);
 	pinMode(D3, OUTPUT);
 	digitalWrite(D3, HIGH);
-	attachInterrupt(D2, fallingInput, FALLING);
+	attachInterrupt(D2, BitHandler::fallingInterrupt, FALLING);
 }
 
 void loop() {
-    //BitHandler test = BitHandler();
-    //test.testFunction();
-    BitHandler::testFunction();
-
 
     delay(8000);
-    /*
+    
     //Create message
-    byte message = 0xf0;  //1111 0000
-    
-    
+    //volatile byte BitHandler::messagePaquet[6] = {0x55, 0x7e, 0xf0, 0xff, 0x00, 0x7e};  //55(Clock) - 7e(Start/End) - f0(Entête/1111 0000) - ff(Data) - 00(CRC)
+    //byte message = 0x15; //0001 0101
+
     //Send message
-    messagePaquet = message;
-    new Thread("threadMessage", threadSendMessage);
+    //BitHandler::setMessage(message);
+    new Thread("threadMessage", BitHandler::threadSendMessage);
     
     //Wait for message to be done 
-    delay(10000);
+    delay(20000);
     
     
-    double clk = calculCLK();
+    double clk = BitHandler::calculCLK();
     WITH_LOCK(Serial){
-        Serial.printlnf("up_counter:%d",up_counter);
-        Serial.printlnf("down_counter:%d",down_counter);
+        //Serial.printlnf("up_counter:%d",up_counter);
+        //Serial.printlnf("down_counter:%d",down_counter);
         Serial.printlnf("clock:%.2f", clk);
-        Serial.printlnf("clock_index:%d", clk_index);
-        Serial.printlnf("clock_time:%d", clk_time);
+        Serial.printlnf("clock_index:%d", BitHandler::clk_index);
+        //Serial.printlnf("clock_time:%d", clk_time);
     }
-    */
-    
-	/*if (millis() - lastReport >= 12000) {
-		lastReport = millis();
-		
-		
-		if(once == 0){
-		    new Thread("threadOutput", threadOutput);
-		    once = 1;
-		}
-		
-		int temp = analogRead(D2);
-
-		WITH_LOCK(Serial) {
-			//Serial.printlnf("counter=%d", counter);
-			Serial.printlnf("read=%d", temp);
-		}
-	}*/
 	
 
 
 	//Reset output to basic **Dependent
-	/*digitalWrite(D3, HIGH);
-	delay(1000);
+	digitalWrite(D3, HIGH);
+	/*delay(1000);
 	clk_time = 0;
 	up_counter = 0;
 	down_counter = 0;
@@ -106,7 +77,9 @@ void loop() {
 }
 
 
-void threadSendMessage(void) {
+//Double LEGACY CODE
+
+/*void threadSendMessage(void) {
     WITH_LOCK(Serial){
         Serial.println("SENDING MESSAGE");
     }
@@ -119,9 +92,6 @@ void threadSendMessage(void) {
         }
     }
     
-    
-    
-    /*
     int bits[8] = {0};
     
     WITH_LOCK(Serial){
@@ -131,10 +101,10 @@ void threadSendMessage(void) {
             delay(200);
         }
         Serial.println("");
-    }*/
-}
+    }
+}*/
 
-void sendHIGH(void){ //1
+/*void sendHIGH(void){ //1
     system_tick_t startOutputThread = millis();
     
     
@@ -155,13 +125,10 @@ void sendLOW(void){ //0
     digitalWrite(D3, HIGH);
     delay(10);
     //os_thread_delay_until(&startOutputThread, 1000);
-}
+}*/
 
-
+/*
 void risingInput(void){
-    /*WITH_LOCK(Serial){
-        Serial.println("RISING\n");
-    }*/
     up_counter++;
     clk_values[clk_index] = millis();
     WITH_LOCK(Serial){
@@ -174,9 +141,6 @@ void risingInput(void){
 }
 
 void fallingInput(void){
-    /*WITH_LOCK(Serial){
-        Serial.println("FALLING");
-    }*/
     down_counter++;
     clk_values[clk_index] = millis();
     WITH_LOCK(Serial){
@@ -219,12 +183,12 @@ double calculCLK(){
     //return 0;
 }
 
-
+*/
 
 
 
 //LEGACY CODE//
-
+/*
 void threadInput(void) {
     int i = 0;
 }
@@ -244,7 +208,7 @@ void threadOutput(void) {
     
 }
 
-
+*/
 
 
 /*void threadFunction(void) {
