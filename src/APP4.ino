@@ -54,7 +54,7 @@ void loop() {
     
     //Wait for message to be done
     //while(!BitHandler::read_end_flag){delay(10);} //À remplacer par une condition variable
-    delay(10000);
+    delay(8000);
     
     WITH_LOCK(Serial){
         Serial.println("FIN DE LA TRANSMISSION");

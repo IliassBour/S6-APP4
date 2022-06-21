@@ -11,19 +11,23 @@ volatile int BitHandler::read_end_flag = 0;
 volatile int BitHandler::msg_byte_length_R = 0;
 volatile unsigned long BitHandler::clk_values[10] = {0};
 volatile int BitHandler::clk_index = 0;
+
 volatile int BitHandler::clk_flag = 0;
 volatile int BitHandler::start_flag = 0;
+volatile int BitHandler::header_flag = 0;
 
 volatile double BitHandler::clk_value_R = 0;
 
 volatile unsigned long BitHandler::time_buffer[2] = {0};
+volatile unsigned long BitHandler::time_buffer_crctr = 0;
+volatile int BitHandler::crctd_flag = 0;
 volatile int BitHandler::time_buffer_index = 0;
 volatile byte BitHandler::byte_buffer = 0x00;
 volatile int BitHandler::byte_buffer_index = 0;
+volatile int BitHandler::byte_buffer_overflow = 2;
 
 volatile byte BitHandler::startBufferTemp = 0x00;
-
-volatile int BitHandler::msg_counter = 0;
+volatile byte BitHandler::headerBufferTemp = 0x00;
 
 //Write
 volatile byte BitHandler::messagePaquet[80] = {0x00};
@@ -50,7 +54,7 @@ void BitHandler::threadSendMessage(){
         BitHandler::clk_index = 0;
     }
 
-    //{0x55, 0x7e, 0xf0, 0xff, 0x00, 0x7e} | 55(Clock) - 7e(Start/End) - 08(L-Data/0000 1000) - ff(Data) - 0000(CRC) ***DEFAULT MESSAGE
+    //{0x55, 0x7e, 0x08, 0xff, 0x00, 0x7e} | 55(Clock) - 7e(Start/End) - 08(Header/0000 1000) - ff(Data) - 0000(CRC) ***DEFAULT MESSAGE
     //Set default message
     BitHandler::messagePaquet[0] = 0x55;
     BitHandler::messagePaquet[1] = 0x7e;
@@ -102,7 +106,6 @@ double BitHandler::calculCLK(){
         Serial.printlnf("Time2: %d", time2);
         Serial.printlnf("Time3: %d", time3);
         Serial.printlnf("Time4: %d", time4);
-        Serial.printlnf("Message counter: %d", BitHandler::msg_counter);
     }
     
     double moy = ((double)time1+(double)time2+(double)time3+(double)time4)/4.0;
@@ -125,6 +128,7 @@ void BitHandler::fallingInterrupt(){
 }
 
 void BitHandler::manchesterDecode(int type){
+    //CLOCK
     if(!BitHandler::clk_flag){
         BitHandler::clk_values[BitHandler::clk_index] = millis();
         BitHandler::clk_index++;
@@ -133,50 +137,137 @@ void BitHandler::manchesterDecode(int type){
             BitHandler::clk_value_R = BitHandler::calculCLK();
         }
     }
+    //START
     else if(!BitHandler::start_flag){
-        //Calcul temps
-        BitHandler::time_buffer[BitHandler::time_buffer_index] = millis();
-
-        //Calcul bit disponible
-        if(BitHandler::time_buffer_index){
-            unsigned long time_diff = BitHandler::time_buffer[1] - BitHandler::time_buffer[0];
-            if(time_diff >= BitHandler::clk_value_R){ //*Incertitude sur le range
-                if(type == MANCH_RISING){
-                    //10
-                    BitHandler::byte_buffer = (BitHandler::byte_buffer << 2) | (0x02);
-                    BitHandler::byte_buffer_index += 2;
-                } else{ //Falling
-                    //01
-                    BitHandler::byte_buffer = (BitHandler::byte_buffer << 2) | (0x01);
-                    BitHandler::byte_buffer_index += 2;
-                }
-            } else{     //*Incertitude sur le range
-                if(type == MANCH_RISING){
-                    //0
-                    BitHandler::byte_buffer = (BitHandler::byte_buffer << 1);
-                    BitHandler::byte_buffer_index += 1;
-                } else{ //Falling
-                    //1
-                    BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (0x01);
-                    BitHandler::byte_buffer_index += 1;
-                }
-            }
-        }
-
-        BitHandler::time_buffer_index = !BitHandler::time_buffer_index;
-
-        //Fin start
-        if(BitHandler::byte_buffer_index == 8){
+        BitHandler::readBit(type);
+        
+        //Fin lecture Byte
+        if(BitHandler::byte_buffer_index >= 8){
             BitHandler::startBufferTemp = BitHandler::byte_buffer;
             BitHandler::byte_buffer_index = 0;
             BitHandler::start_flag = 1;
+
             WITH_LOCK(Serial){
                 Serial.printlnf("Start byte: %02x", BitHandler::startBufferTemp);
             }
         }
     }
+    //HEADER
+    else if (!BitHandler::header_flag){
+        BitHandler::readBit(type);
 
-    BitHandler::msg_counter++;
+        //Fin lecture Byte
+        if(BitHandler::byte_buffer_index >= 8){
+            BitHandler::headerBufferTemp = BitHandler::byte_buffer;
+            BitHandler::header_flag = 1;
+
+            WITH_LOCK(Serial){
+                Serial.printlnf("Header byte: %02x", BitHandler::headerBufferTemp);
+            }
+            BitHandler::byte_buffer_index = 0;
+        }
+    }
+    //DATA
+    //CRC16
+    //END
+}
+
+void BitHandler::readBit(int type) {
+    //Calcul temps
+    BitHandler::time_buffer[BitHandler::time_buffer_index] = millis();
+
+    //Calcul bit disponible
+    if(BitHandler::time_buffer_index){
+        unsigned long time_diff = BitHandler::time_buffer[1] - BitHandler::time_buffer[0];
+        if(time_diff >= BitHandler::clk_value_R){ //*Incertitude sur le range
+            if(type == MANCH_RISING){
+                //10
+                WITH_LOCK(Serial){
+                    Serial.println("Adding 10");
+                }
+                BitHandler::updateByteBuffer(1, 0);
+            } else{ //Falling
+                //01
+                WITH_LOCK(Serial){
+                    Serial.println("Adding 01");
+                }
+                BitHandler::updateByteBuffer(0, 1);
+            }
+        } else{
+            if(((BitHandler::time_buffer[0] - BitHandler::time_buffer_crctr) >= BitHandler::clk_value_R && BitHandler::time_buffer_crctr != 0) || BitHandler::crctd_flag){ //*Incertitude sur le range
+                if(type == MANCH_RISING){
+                    //1
+                    WITH_LOCK(Serial){
+                        Serial.println("Adding 1, corrected");
+                    }
+                    BitHandler::updateByteBuffer(1);
+                } else{ //Falling
+                    //0
+                    WITH_LOCK(Serial){
+                        Serial.println("Adding 0, corrected");
+                    }
+                    BitHandler::updateByteBuffer(0);
+                }
+                
+                //Gestion dephasage
+                if((BitHandler::time_buffer[0] - BitHandler::time_buffer_crctr) >= BitHandler::clk_value_R && BitHandler::time_buffer_crctr != 0){
+                    WITH_LOCK(Serial){
+                        Serial.println("Dephasage");
+                    }
+                    BitHandler::crctd_flag = !BitHandler::crctd_flag;
+                }
+            }
+            else { //*Incertitude sur le range
+                if(type == MANCH_RISING){
+                    //0
+                    WITH_LOCK(Serial){
+                        Serial.println("Adding 0");
+                    }
+                    BitHandler::updateByteBuffer(0);
+                } else{ //Falling
+                    //1
+                    WITH_LOCK(Serial){
+                        Serial.println("Adding 1");
+                    }
+                    BitHandler::updateByteBuffer(1);
+                }
+            }
+        }
+        BitHandler::time_buffer_crctr = BitHandler::time_buffer[1];
+    }
+
+    BitHandler::time_buffer_index = !BitHandler::time_buffer_index;
+}
+
+void BitHandler::updateByteBuffer(int bit1, int bit2){   //bit2=2 => no bit2
+    //Ajout overflow
+    if(BitHandler::byte_buffer_overflow != 2){
+        BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (BitHandler::byte_buffer_overflow);
+        BitHandler::byte_buffer_index++;
+        BitHandler::byte_buffer_overflow = 2; //Reset overflow
+    }
+    //Update buffer
+    if(bit2 != 2){ //Ajouter 2 bit
+        //Possibilite d'overflow
+        if(BitHandler::byte_buffer_index == 7){ //Overflow
+            WITH_LOCK(Serial){
+                Serial.println("Overflow");
+            }
+            BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (bit1);
+            BitHandler::byte_buffer_overflow = bit2;
+            BitHandler::byte_buffer_index += 1;
+        }
+        else {
+            BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (bit1); //MSB
+            BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (bit2); //LSB
+            BitHandler::byte_buffer_index += 2;
+        }
+        
+    } 
+    else { //Ajouter 1 bits
+        BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (bit1);
+        BitHandler::byte_buffer_index += 1;
+    }
 }
 
 //Sends a Manchester coded "1"
