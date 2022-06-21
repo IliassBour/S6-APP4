@@ -1,4 +1,5 @@
 #include "Particle.h"
+#include "BitHandler.h"
 
 // D2 = input
 // D3 = output
@@ -20,7 +21,6 @@ unsigned long lastReport = 0;
 //system_tick_t lastOuputThreadTime = 0;
 
 
-
 //***//
 void threadSendMessage(void);
 
@@ -33,7 +33,7 @@ system_tick_t lastOuputThreadTime = 0;
 //Read
 volatile int up_counter = 0;
 volatile int down_counter = 0;
-volatile unsigned long clk_values[9] = {0};
+volatile unsigned long clk_values[10] = {0};
 volatile int clk_index = 0;
 volatile unsigned long clk_time = 0;
 
@@ -48,9 +48,13 @@ void setup() {
 }
 
 void loop() {
-    
+    //BitHandler test = BitHandler();
+    //test.testFunction();
+    BitHandler::testFunction();
+
+
     delay(8000);
-    
+    /*
     //Create message
     byte message = 0xf0;  //1111 0000
     
@@ -71,7 +75,7 @@ void loop() {
         Serial.printlnf("clock_index:%d", clk_index);
         Serial.printlnf("clock_time:%d", clk_time);
     }
-    
+    */
     
 	/*if (millis() - lastReport >= 12000) {
 		lastReport = millis();
@@ -90,13 +94,15 @@ void loop() {
 		}
 	}*/
 	
-	//Reset output to basic
-	digitalWrite(D3, HIGH);
-	
-	clk_index = 0;
+
+
+	//Reset output to basic **Dependent
+	/*digitalWrite(D3, HIGH);
+	delay(1000);
 	clk_time = 0;
 	up_counter = 0;
 	down_counter = 0;
+    clk_index = 0;*/
 }
 
 
