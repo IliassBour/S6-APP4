@@ -52,23 +52,23 @@ void loop() {
     //BitHandler::setMessage(message);
     new Thread("threadMessage", BitHandler::threadSendMessage);
     
-    //Wait for message to be done 
-    delay(20000);
+    //Wait for message to be done
+    //while(!BitHandler::read_end_flag){delay(10);} //À remplacer par une condition variable
+    delay(10000);
     
+    WITH_LOCK(Serial){
+        Serial.println("FIN DE LA TRANSMISSION");
+    }
     
-    double clk = BitHandler::calculCLK();
+    /*double clk = BitHandler::calculCLK();
     WITH_LOCK(Serial){
         //Serial.printlnf("up_counter:%d",up_counter);
         //Serial.printlnf("down_counter:%d",down_counter);
         Serial.printlnf("clock:%.2f", clk);
         Serial.printlnf("clock_index:%d", BitHandler::clk_index);
         //Serial.printlnf("clock_time:%d", clk_time);
-    }
+    }*/
 	
-
-
-	//Reset output to basic **Dependent
-	digitalWrite(D3, HIGH);
 	/*delay(1000);
 	clk_time = 0;
 	up_counter = 0;
