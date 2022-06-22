@@ -9,7 +9,7 @@ class BitHandler
 {
 private:
     //General
-    static const int half_period = 10;  //in ms
+    static const int half_period = 1;  //in ms
     static const int inputPin = D2;
     static const int outputPin = D3;
 
@@ -57,7 +57,7 @@ public:
 
     BitHandler();
     static void resetHandler();
-    static void setMessage(byte message);
+    static void setMessage(byte message[80], int messageLength);
     static void threadSendMessage();
     static void risingInterrupt();
     static void fallingInterrupt();

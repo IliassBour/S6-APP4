@@ -43,9 +43,12 @@ volatile int BitHandler::messageByteLengthW = 0;
 //Class constructor
 BitHandler::BitHandler(){}
 
-//Change message data   //**TO MODIFY**
-void BitHandler::setMessage(byte message){
-    BitHandler::messagePaquet[3] = message;
+//Change message data
+void BitHandler::setMessage(byte message[80], int messageLength){
+    for(int i = 0; i < messageLength; i++){
+        BitHandler::messagePaquet[i] = message[i];
+    }
+    BitHandler::messageByteLengthW = messageLength;
 }
 
 //Send message (Only clock signal for now)
@@ -56,7 +59,7 @@ void BitHandler::threadSendMessage(){
 
     //{0x55, 0x7e, 0x08, 0xff, 0x00, 0x7e} | 55(Clock) - 7e(Start/End) - 01(Header/0000 0001) - ff(Data) - 0000(CRC) ***DEFAULT MESSAGE
     //Set default message
-    BitHandler::messagePaquet[0] = 0x55;
+    /*BitHandler::messagePaquet[0] = 0x55;
     BitHandler::messagePaquet[1] = 0x7e;
     BitHandler::messagePaquet[2] = 0x02;
     BitHandler::messagePaquet[3] = 0xff;
@@ -64,7 +67,7 @@ void BitHandler::threadSendMessage(){
     BitHandler::messagePaquet[5] = 0x00;
     BitHandler::messagePaquet[6] = 0x85;
     BitHandler::messagePaquet[7] = 0x7e;
-    BitHandler::messageByteLengthW = 8;
+    BitHandler::messageByteLengthW = 8;*/
 
 
     WITH_LOCK(Serial){
@@ -93,7 +96,7 @@ double BitHandler::calculCLK(){
     unsigned long time3 = BitHandler::clk_values[6] - BitHandler::clk_values[5];
     unsigned long time4 = BitHandler::clk_values[8] - BitHandler::clk_values[7];
     
-    WITH_LOCK(Serial){
+    /*WITH_LOCK(Serial){
         Serial.printlnf("clk0: %d", BitHandler::clk_values[0]);
         Serial.printlnf("clk1: %d", BitHandler::clk_values[1]);
         Serial.printlnf("clk2: %d", BitHandler::clk_values[2]);
@@ -107,7 +110,7 @@ double BitHandler::calculCLK(){
         Serial.printlnf("Time2: %d", time2);
         Serial.printlnf("Time3: %d", time3);
         Serial.printlnf("Time4: %d", time4);
-    }
+    }*/
     
     double moy = ((double)time1+(double)time2+(double)time3+(double)time4)/4.0;
     
@@ -177,9 +180,9 @@ void BitHandler::manchesterDecode(int type){
         if(BitHandler::byte_buffer_index >= 8) {
             BitHandler::msgBuffer[BitHandler::msg_buffer_index] = BitHandler::byte_buffer;
 
-            WITH_LOCK(Serial){
+            /*WITH_LOCK(Serial){
                 Serial.printlnf("Data byte: %02x", BitHandler::msgBuffer[BitHandler::msg_buffer_index]);
-            }
+            }*/
 
             BitHandler::msg_buffer_index++;
             BitHandler::byte_buffer_index = 0;
@@ -236,15 +239,15 @@ void BitHandler::readBit(int type) {
         if(time_diff >= BitHandler::clk_value_R){ //*Incertitude sur le range
             if(type == MANCH_RISING){
                 //10
-                WITH_LOCK(Serial){
+                /*WITH_LOCK(Serial){
                     Serial.println("Adding 10");
-                }
+                }*/
                 BitHandler::updateByteBuffer(1, 0);
             } else{ //Falling
                 //01
-                WITH_LOCK(Serial){
+                /*WITH_LOCK(Serial){
                     Serial.println("Adding 01");
-                }
+                }*/
                 BitHandler::updateByteBuffer(0, 1);
             }
             BitHandler::crctd_flag = 0;
@@ -252,38 +255,38 @@ void BitHandler::readBit(int type) {
             if(((BitHandler::time_buffer[0] - BitHandler::time_buffer_crctr) >= BitHandler::clk_value_R && BitHandler::time_buffer_crctr != 0) || BitHandler::crctd_flag){ //*Incertitude sur le range
                 if(type == MANCH_RISING){
                     //1
-                    WITH_LOCK(Serial){
+                    /*WITH_LOCK(Serial){
                         Serial.println("Adding 1, corrected");
-                    }
+                    }*/
                     BitHandler::updateByteBuffer(1);
                 } else{ //Falling
                     //0
-                    WITH_LOCK(Serial){
+                    /*WITH_LOCK(Serial){
                         Serial.println("Adding 0, corrected");
-                    }
+                    }*/
                     BitHandler::updateByteBuffer(0);
                 }
                 
                 //Gestion dephasage
                 if((BitHandler::time_buffer[0] - BitHandler::time_buffer_crctr) >= BitHandler::clk_value_R && BitHandler::time_buffer_crctr != 0){
-                    WITH_LOCK(Serial){
+                    /*WITH_LOCK(Serial){
                         Serial.println("Dephasage");
-                    }
+                    }*/
                     BitHandler::crctd_flag = !BitHandler::crctd_flag;
                 }
             }
             else { //*Incertitude sur le range
                 if(type == MANCH_RISING){
                     //0
-                    WITH_LOCK(Serial){
+                    /*WITH_LOCK(Serial){
                         Serial.println("Adding 0");
-                    }
+                    }*/
                     BitHandler::updateByteBuffer(0);
                 } else{ //Falling
                     //1
-                    WITH_LOCK(Serial){
+                    /*WITH_LOCK(Serial){
                         Serial.println("Adding 1");
-                    }
+                    }*/
                     BitHandler::updateByteBuffer(1);
                 }
             }
@@ -305,9 +308,9 @@ void BitHandler::updateByteBuffer(int bit1, int bit2){   //bit2=2 => no bit2
     if(bit2 != 2){ //Ajouter 2 bit
         //Possibilite d'overflow
         if(BitHandler::byte_buffer_index == 7){ //Overflow
-            WITH_LOCK(Serial){
+            /*WITH_LOCK(Serial){
                 Serial.println("Overflow");
-            }
+            }*/
             BitHandler::byte_buffer = (BitHandler::byte_buffer << 1) | (bit1);
             BitHandler::byte_buffer_overflow = bit2;
             BitHandler::byte_buffer_index += 1;
