@@ -136,32 +136,32 @@ void sendWrongTrame(byte (&trame)[80]) {
 
 void receiveTrame(byte trame[]) {
     //verify start
-    if(trame[1] != 126){
+    if(trame[0] != 126){
         Serial.println("Start de la trame non valide!");
     }
 
     //verify crc16
     int index = 0;
     uint8_t data[74];
-    while(trame[index+5] != 126 && index < 74) {
-        data[index] = trame[index+3];
+    while(trame[index+4] != 126 && index < 74) {
+        data[index] = trame[index+2];
 
         index++;
     }
 
     uint16_t crc = calculCRC16(data, index);
     
-    if((trame[index+3] << 8) + trame[index+4] == crc) {
+    if((trame[index+2] << 8) + trame[index+3] == crc) {
         Serial.println("CRC16 correcte!");
     } else {
-        Serial.printlnf("Trame errone! crc calcule %x != crc trame %x%x", crc, trame[index+3], trame[index+4]);
+        Serial.printlnf("Trame errone! crc calcule %x != crc trame %x%x", crc, trame[index+2], trame[index+3]);
     } 
 
     //Extract message
     extractMessage(data, index);
 
     //verify end
-    if(trame[index+5] != 126){
+    if(trame[index+4] != 126){
         Serial.println("End de la trame non valide!");
     }
 }/**/
