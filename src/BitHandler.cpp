@@ -15,6 +15,7 @@ volatile int BitHandler::clk_index = 0;
 volatile int BitHandler::clk_flag = 0;
 volatile int BitHandler::start_flag = 0;
 volatile int BitHandler::header_flag = 0;
+volatile int BitHandler::data_flag = 0;
 
 volatile double BitHandler::clk_value_R = 0;
 
@@ -25,9 +26,11 @@ volatile int BitHandler::time_buffer_index = 0;
 volatile byte BitHandler::byte_buffer = 0x00;
 volatile int BitHandler::byte_buffer_index = 0;
 volatile int BitHandler::byte_buffer_overflow = 2;
+volatile int BitHandler::msg_buffer_index = 0;
 
 volatile byte BitHandler::startBufferTemp = 0x00;
 volatile byte BitHandler::headerBufferTemp = 0x00;
+volatile byte BitHandler::msgBufferTemp[74] = {0x00};
 
 //Write
 volatile byte BitHandler::messagePaquet[80] = {0x00};
@@ -58,12 +61,13 @@ void BitHandler::threadSendMessage(){
     //Set default message
     BitHandler::messagePaquet[0] = 0x55;
     BitHandler::messagePaquet[1] = 0x7e;
-    BitHandler::messagePaquet[2] = 0x01;
+    BitHandler::messagePaquet[2] = 0x02;
     BitHandler::messagePaquet[3] = 0xff;
-    BitHandler::messagePaquet[4] = 0x00;
+    BitHandler::messagePaquet[4] = 0x08;
     BitHandler::messagePaquet[5] = 0x00;
-    BitHandler::messagePaquet[6] = 0x7e;
-    BitHandler::messageByteLengthW = 7;
+    BitHandler::messagePaquet[6] = 0x00;
+    BitHandler::messagePaquet[7] = 0x7e;
+    BitHandler::messageByteLengthW = 8;
 
 
     WITH_LOCK(Serial){
@@ -155,7 +159,7 @@ void BitHandler::manchesterDecode(int type){
     //HEADER
     else if (!BitHandler::header_flag){
         BitHandler::readBit(type);
-
+        
         //Fin lecture Byte
         if(BitHandler::byte_buffer_index >= 8){
             BitHandler::headerBufferTemp = BitHandler::byte_buffer;
@@ -168,6 +172,28 @@ void BitHandler::manchesterDecode(int type){
         }
     }
     //DATA
+    else if (!BitHandler::data_flag){
+        BitHandler::readBit(type);
+
+        //Fin lecture Byte
+        if(BitHandler::msg_buffer_index < BitHandler::headerBufferTemp) {
+            if(BitHandler::byte_buffer_index >= 8) {
+                BitHandler::msgBufferTemp[BitHandler::msg_buffer_index] = BitHandler::byte_buffer;
+
+                WITH_LOCK(Serial){
+                    Serial.printlnf("Data byte: %02x", BitHandler::msgBufferTemp[BitHandler::msg_buffer_index]);
+                }
+
+                BitHandler::msg_buffer_index++;
+                BitHandler::byte_buffer_index = 0;
+
+                if (BitHandler::msg_buffer_index == BitHandler::headerBufferTemp){
+                    BitHandler::data_flag = 1;
+                }
+            }
+        }
+        
+    }
     //CRC16
     //END
 }

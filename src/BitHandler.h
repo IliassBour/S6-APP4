@@ -22,6 +22,7 @@ private:
     static volatile int clk_flag;
     static volatile int start_flag;
     static volatile int header_flag;
+    static volatile int data_flag;
 
     static volatile double clk_value_R;
 
@@ -32,6 +33,7 @@ private:
     static volatile byte byte_buffer;
     static volatile int byte_buffer_index;
     static volatile int byte_buffer_overflow; //0=0, 1=1, 2=no overflow
+    static volatile int msg_buffer_index;
 
     //static volatile byte clockBufferTemp;     UNUSED
     static volatile byte startBufferTemp;
