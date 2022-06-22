@@ -13,16 +13,12 @@ private:
     static const int inputPin = D2;
     static const int outputPin = D3;
 
-    //Write
-    //system_tick_t lastOuputThreadTime = 0;
-
     //Read
-    static volatile int msg_byte_length_R;
-
     static volatile int clk_flag;
     static volatile int start_flag;
     static volatile int header_flag;
     static volatile int data_flag;
+    static volatile int crc_flag;
 
     static volatile double clk_value_R;
 
@@ -34,13 +30,13 @@ private:
     static volatile int byte_buffer_index;
     static volatile int byte_buffer_overflow; //0=0, 1=1, 2=no overflow
     static volatile int msg_buffer_index;
+    static volatile int crc_buffer_index;
 
-    //static volatile byte clockBufferTemp;     UNUSED
-    static volatile byte startBufferTemp;
-    static volatile byte headerBufferTemp;
-    static volatile byte msgBufferTemp[74];
-    static volatile byte crcBufferTemp[2];
-    static volatile byte endBufferTemp;
+    static volatile byte startBuffer;
+    static volatile byte headerBuffer;
+    static volatile byte msgBuffer[74];
+    static volatile byte crcBuffer[2];
+    static volatile byte endBuffer;
 
     //Functions
     static void manchesterDecode(int type); //0 = falling, 1 = rising
@@ -55,16 +51,18 @@ public:
     static volatile int messageByteLengthW;
 
     //Read
-    static volatile int read_end_flag;
     static volatile unsigned long clk_values[10];
     static volatile int clk_index;
+    static volatile int end_flag;
 
     BitHandler();
+    static void resetHandler();
     static void setMessage(byte message);
     static void threadSendMessage();
     static void risingInterrupt();
     static void fallingInterrupt();
     static double calculCLK();
+    static void getRawMessageBytes(byte (&messageReturn)[80]);
 };
 
 #endif

@@ -54,10 +54,20 @@ void loop() {
     
     //Wait for message to be done
     //while(!BitHandler::read_end_flag){delay(10);} //À remplacer par une condition variable
-    delay(8000);
+    while (!BitHandler::end_flag)
+    {
+        delay(10);
+    }
+
+    byte received_msg[80] = {0x00};
+    BitHandler::getRawMessageBytes(received_msg);  //byte[80]
     
     WITH_LOCK(Serial){
         Serial.println("FIN DE LA TRANSMISSION");
+        for(int i = 0; i < sizeof(received_msg)/sizeof(received_msg[0]); i++){
+            Serial.printf("%02x ", received_msg[i]);
+        }
+        Serial.print("\n");
     }
     
     /*double clk = BitHandler::calculCLK();

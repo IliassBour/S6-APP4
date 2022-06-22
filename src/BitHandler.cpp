@@ -7,8 +7,6 @@
 #define MANCH_FALLING 0
 
 //Read
-volatile int BitHandler::read_end_flag = 0;
-volatile int BitHandler::msg_byte_length_R = 0;
 volatile unsigned long BitHandler::clk_values[10] = {0};
 volatile int BitHandler::clk_index = 0;
 
@@ -16,6 +14,8 @@ volatile int BitHandler::clk_flag = 0;
 volatile int BitHandler::start_flag = 0;
 volatile int BitHandler::header_flag = 0;
 volatile int BitHandler::data_flag = 0;
+volatile int BitHandler::crc_flag = 0;
+volatile int BitHandler::end_flag = 0;
 
 volatile double BitHandler::clk_value_R = 0;
 
@@ -27,10 +27,13 @@ volatile byte BitHandler::byte_buffer = 0x00;
 volatile int BitHandler::byte_buffer_index = 0;
 volatile int BitHandler::byte_buffer_overflow = 2;
 volatile int BitHandler::msg_buffer_index = 0;
+volatile int BitHandler::crc_buffer_index = 0;
 
-volatile byte BitHandler::startBufferTemp = 0x00;
-volatile byte BitHandler::headerBufferTemp = 0x00;
-volatile byte BitHandler::msgBufferTemp[74] = {0x00};
+volatile byte BitHandler::startBuffer = 0x00;
+volatile byte BitHandler::headerBuffer = 0x00;
+volatile byte BitHandler::msgBuffer[74] = {0x00};
+volatile byte BitHandler::crcBuffer[2] = {0x00};
+volatile byte BitHandler::endBuffer = 0x00;
 
 //Write
 volatile byte BitHandler::messagePaquet[80] = {0x00};
@@ -38,13 +41,7 @@ volatile int BitHandler::messageByteLengthW = 0;
 //*** ***//
 
 //Class constructor
-BitHandler::BitHandler(){
-    /*for(int i=0;i<10;i++)
-    {
-        BitHandler::clk_values[i] = 0;
-    }
-    BitHandler::clk_index = 0;*/
-}
+BitHandler::BitHandler(){}
 
 //Change message data   //**TO MODIFY**
 void BitHandler::setMessage(byte message){
@@ -65,7 +62,7 @@ void BitHandler::threadSendMessage(){
     BitHandler::messagePaquet[3] = 0xff;
     BitHandler::messagePaquet[4] = 0x08;
     BitHandler::messagePaquet[5] = 0x00;
-    BitHandler::messagePaquet[6] = 0x00;
+    BitHandler::messagePaquet[6] = 0x85;
     BitHandler::messagePaquet[7] = 0x7e;
     BitHandler::messageByteLengthW = 8;
 
@@ -132,6 +129,7 @@ void BitHandler::fallingInterrupt(){
 }
 
 void BitHandler::manchesterDecode(int type){
+    //Pourrait etre fait avec un Switch Case
     //CLOCK
     if(!BitHandler::clk_flag){
         BitHandler::clk_values[BitHandler::clk_index] = millis();
@@ -147,12 +145,12 @@ void BitHandler::manchesterDecode(int type){
         
         //Fin lecture Byte
         if(BitHandler::byte_buffer_index >= 8){
-            BitHandler::startBufferTemp = BitHandler::byte_buffer;
+            BitHandler::startBuffer = BitHandler::byte_buffer;
             BitHandler::byte_buffer_index = 0;
             BitHandler::start_flag = 1;
 
             WITH_LOCK(Serial){
-                Serial.printlnf("Start byte: %02x", BitHandler::startBufferTemp);
+                Serial.printlnf("Start byte: %02x", BitHandler::startBuffer);
             }
         }
     }
@@ -162,11 +160,11 @@ void BitHandler::manchesterDecode(int type){
         
         //Fin lecture Byte
         if(BitHandler::byte_buffer_index >= 8){
-            BitHandler::headerBufferTemp = BitHandler::byte_buffer;
+            BitHandler::headerBuffer = BitHandler::byte_buffer;
             BitHandler::header_flag = 1;
 
             WITH_LOCK(Serial){
-                Serial.printlnf("Header byte: %02x", BitHandler::headerBufferTemp);
+                Serial.printlnf("Header byte: %02x", BitHandler::headerBuffer);
             }
             BitHandler::byte_buffer_index = 0;
         }
@@ -176,26 +174,56 @@ void BitHandler::manchesterDecode(int type){
         BitHandler::readBit(type);
 
         //Fin lecture Byte
-        if(BitHandler::msg_buffer_index < BitHandler::headerBufferTemp) {
-            if(BitHandler::byte_buffer_index >= 8) {
-                BitHandler::msgBufferTemp[BitHandler::msg_buffer_index] = BitHandler::byte_buffer;
+        if(BitHandler::byte_buffer_index >= 8) {
+            BitHandler::msgBuffer[BitHandler::msg_buffer_index] = BitHandler::byte_buffer;
 
-                WITH_LOCK(Serial){
-                    Serial.printlnf("Data byte: %02x", BitHandler::msgBufferTemp[BitHandler::msg_buffer_index]);
-                }
+            WITH_LOCK(Serial){
+                Serial.printlnf("Data byte: %02x", BitHandler::msgBuffer[BitHandler::msg_buffer_index]);
+            }
 
-                BitHandler::msg_buffer_index++;
-                BitHandler::byte_buffer_index = 0;
+            BitHandler::msg_buffer_index++;
+            BitHandler::byte_buffer_index = 0;
 
-                if (BitHandler::msg_buffer_index == BitHandler::headerBufferTemp){
-                    BitHandler::data_flag = 1;
-                }
+            if (BitHandler::msg_buffer_index == BitHandler::headerBuffer){
+                BitHandler::data_flag = 1;
             }
         }
         
     }
     //CRC16
+    else if(!BitHandler::crc_flag){
+        BitHandler::readBit(type);
+
+        if(BitHandler::byte_buffer_index >= 8) {
+            BitHandler::crcBuffer[BitHandler::crc_buffer_index] = BitHandler::byte_buffer;
+
+            WITH_LOCK(Serial){
+                Serial.printlnf("CRC byte: %02x", BitHandler::crcBuffer[BitHandler::crc_buffer_index]);
+            }
+
+            BitHandler::crc_buffer_index++;
+            BitHandler::byte_buffer_index = 0;
+
+            if (BitHandler::crc_buffer_index == 2){
+                BitHandler::crc_flag = 1;
+            }
+        }
+    }
     //END
+    else if(!BitHandler::end_flag){
+        BitHandler::readBit(type);
+
+        if(BitHandler::byte_buffer_index >= 7) {
+            BitHandler::endBuffer = (BitHandler::byte_buffer << 1);
+
+            WITH_LOCK(Serial){
+                Serial.printlnf("End byte: %02x", BitHandler::endBuffer);
+            }
+
+            BitHandler::byte_buffer_index = 0;
+            BitHandler::end_flag = 1;
+        }
+    }
 }
 
 void BitHandler::readBit(int type) {
@@ -311,4 +339,21 @@ void BitHandler::sendManch_0(){
     delay(BitHandler::half_period);
     digitalWrite(BitHandler::outputPin, HIGH);
     delay(BitHandler::half_period);
+}
+
+void BitHandler::getRawMessageBytes(byte (&msgReturn)[80]) {
+    int finData = 0;
+
+    msgReturn[0] = BitHandler::startBuffer;
+    msgReturn[1] = BitHandler::headerBuffer;
+    for(finData = 0; finData < (BitHandler::headerBuffer); finData++){
+        msgReturn[finData+2] = BitHandler::msgBuffer[finData];
+    }
+    msgReturn[finData+2] = BitHandler::crcBuffer[0];
+    msgReturn[finData+3] = BitHandler::crcBuffer[1];
+    msgReturn[finData+4] = BitHandler::endBuffer;
+}
+
+void BitHandler::resetHandler() {
+    delay(10);
 }
