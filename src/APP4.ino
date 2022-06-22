@@ -48,9 +48,6 @@ void loop() {
     byte trame[80] = {0};
     int trameLength = sendTrame("Hello world! Am I your friend?", trame);
     sendWrongTrame(trame);
-    /*for(int i =0; i <18; i++) {
-        Serial.printf("trame %d: %x\n", i, trame[i]);
-    }*/
 
     //**Prepare BitHandler**//
     BitHandler::setMessage(trame, trameLength);
