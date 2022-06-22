@@ -74,7 +74,7 @@ uint16_t calculCRC16(const uint8_t *data, uint16_t size) {
     return crc;
 }
 
-void sendTrame(std::string message, byte (&trame)[80]) {
+int sendTrame(std::string message, byte (&trame)[80]) {
     std::string temp_bin = "";
 
     //Préambule
@@ -122,6 +122,8 @@ void sendTrame(std::string message, byte (&trame)[80]) {
     }
     temp_bin += "0";
     trame[index+5] = std::stoi(temp_bin, nullptr, 2);
+
+    return index+6;
 }
 
 void sendWrongTrame(byte (&trame)[80]) {
