@@ -54,11 +54,11 @@ void BitHandler::threadSendMessage(){
         BitHandler::clk_index = 0;
     }
 
-    //{0x55, 0x7e, 0x08, 0xff, 0x00, 0x7e} | 55(Clock) - 7e(Start/End) - 08(Header/0000 1000) - ff(Data) - 0000(CRC) ***DEFAULT MESSAGE
+    //{0x55, 0x7e, 0x08, 0xff, 0x00, 0x7e} | 55(Clock) - 7e(Start/End) - 01(Header/0000 0001) - ff(Data) - 0000(CRC) ***DEFAULT MESSAGE
     //Set default message
     BitHandler::messagePaquet[0] = 0x55;
     BitHandler::messagePaquet[1] = 0x7e;
-    BitHandler::messagePaquet[2] = 0x08;
+    BitHandler::messagePaquet[2] = 0x01;
     BitHandler::messagePaquet[3] = 0xff;
     BitHandler::messagePaquet[4] = 0x00;
     BitHandler::messagePaquet[5] = 0x00;
@@ -193,6 +193,7 @@ void BitHandler::readBit(int type) {
                 }
                 BitHandler::updateByteBuffer(0, 1);
             }
+            BitHandler::crctd_flag = 0;
         } else{
             if(((BitHandler::time_buffer[0] - BitHandler::time_buffer_crctr) >= BitHandler::clk_value_R && BitHandler::time_buffer_crctr != 0) || BitHandler::crctd_flag){ //*Incertitude sur le range
                 if(type == MANCH_RISING){
