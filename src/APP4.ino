@@ -47,7 +47,7 @@ void loop() {
     //**Create message and frame**//
     byte trame[80] = {0};
     int trameLength = sendTrame("Hello world! Am I your friend?", trame);
-    sendWrongTrame(trame);
+    //sendWrongTrame(trame);
 
     //**Prepare BitHandler**//
     BitHandler::setMessage(trame, trameLength);
